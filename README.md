@@ -1,21 +1,55 @@
-# React + TypeScript + Vite
+# Bio Timer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A customizable sequential timer application built with React and TypeScript.
 
-While this project uses React, Vite supports many popular JS frameworks. [See all the supported frameworks](https://vitejs.dev/guide/#scaffolding-your-first-vite-project).
+## Features
 
-## Deploy Your Own
+- Add multiple named timer items with custom durations
+- Sequential timer execution (items run one after another)
+- Visual feedback for the currently active timer
+- Sound notification when all timers complete
+- Pause and reset functionality
 
-Deploy your own Vite project with Vercel.
+## How to Use
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/examples/tree/main/framework-boilerplates/vite-react&template=vite-react)
+1. **Add Timer Items**:
+   - Enter a name for your timer item
+   - Set the duration (hours, minutes, seconds)
+   - Click "Add item" to add it to the list
+   - Repeat to add multiple items
 
-_Live Example: https://vite-react-example.vercel.app_
+2. **Start the Timer**:
+   - Click "Start" to begin the sequential timer
+   - The first item will start counting down
+   - When it reaches zero, the next item will automatically start
+   - A sound will play when all timers have completed
 
-### Deploying From Your Terminal
+3. **Controls**:
+   - **Pause**: Temporarily stop the current timer
+   - **Reset**: Reset all timers to their initial values
 
-You can deploy your new Vite project with a single command from your terminal using [Vercel CLI](https://vercel.com/download):
+## Custom Notification Sound
+
+To use a custom notification sound:
+1. Add your sound file named `notification.mp3` to the `/public` directory
+2. The app will automatically use this file when timers complete
+3. If no sound file is found, a fallback beep will be used
+
+## Development
+
+This project is built with React, TypeScript, and Vite.
 
 ```shell
-$ vercel
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
 ```
+
+## License
+
+MIT
