@@ -32,7 +32,7 @@ function App() {
           const current = newTimers[currentTimerIndex]
           
           if (current && current.remainingTime > 0) {
-            current.remainingTime -= 0.5
+            current.remainingTime -= 1
           } else if (current) {
             if (currentTimerIndex < newTimers.length - 1) {
               setCurrentTimerIndex(currentTimerIndex + 1)
