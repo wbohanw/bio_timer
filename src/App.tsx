@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import noti from './assets/noti.mp3'
+import Cookies from 'js-cookie'
 
 import ClickSpark from './click.tsx';
 
@@ -112,22 +113,20 @@ function App() {
   const [minutes, setMinutes] = useState('0')
   const [seconds, setSeconds] = useState('0')
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [presetName, setPresetName] = useState('')
   const [savedPresets, setSavedPresets] = useState<Preset[]>([])
   const [showPresets, setShowPresets] = useState(false)
 
   useEffect(() => {
-    // Clear presets from localStorage on component mount
-    localStorage.removeItem('timerPresets');
-    setSavedPresets([]);
+    // Load presets from cookies on component mount
+    const cookiePresets = Cookies.get('timerPresets');
+    if (cookiePresets) {
+      setSavedPresets(JSON.parse(cookiePresets));
+    }
   }, []);
 
   useEffect(() => {
-    const presets = JSON.parse(localStorage.getItem('timerPresets') || '[]')
-    setSavedPresets(presets)
-  }, [])
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout | number
+    let interval: number
     if (isRunning && currentTimerIndex !== -1) {
       interval = setInterval(() => {
         setTimers(prev => {
@@ -231,6 +230,22 @@ function App() {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
+  const savePreset = () => {
+    if (presetName && timers.length > 0) {
+      const newPreset: Preset = {
+        name: presetName,
+        timers: timers.map(t => ({
+          ...t,
+          remainingTime: t.initialTime
+        }))
+      };
+      
+      const newPresets = [...savedPresets, newPreset];
+      Cookies.set('timerPresets', JSON.stringify(newPresets), { expires: 365 }); // Set cookie to expire in 1 year
+      setSavedPresets(newPresets);
+      setPresetName('');
+    }
+  };
 
   const loadPreset = (preset: Preset) => {
     if (confirm('Load this preset? Current timers will be lost.')) {
@@ -269,7 +284,7 @@ function App() {
         }
 
         const importedPresets = [...savedPresets, ...parsedPresets]
-        localStorage.setItem('timerPresets', JSON.stringify(importedPresets))
+        Cookies.set('timerPresets', JSON.stringify(importedPresets), { expires: 365 });
         setSavedPresets(importedPresets)
         alert('Successfully imported presets!')
       } catch (error) {
@@ -284,8 +299,13 @@ function App() {
     setShowPresets(prev => !prev);
   };
 
+  const clearPresets = () => {
+    Cookies.remove('timerPresets');
+    setSavedPresets([]);
+  };
+
   return (
-    <>
+    <div className='bg-black h-screen overflow-hidden'>
     <ClickSpark
   sparkColor='#fff'
   sparkSize={5}
@@ -296,7 +316,7 @@ function App() {
 
       <h1 className="text-3xl font-bold">Bio Timer</h1>
       <div className="mt-10">
-        <div className="mb-8 p-4 bg-white/10 rounded-lg shadow-md">
+        <div className="mb-8 p-4 bg-black rounded-lg shadow-md">
           <div className="flex gap-2 mb-4">
             <button
               className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-2xl disabled:opacity-50"
@@ -324,11 +344,11 @@ function App() {
             </button>
           </div>
           {showPresets && (
-            <div className="flex flex-col gap-2 mt-4 max-h-52 overflow-y-auto p-2 bg-white/5 rounded">
+            <div className="flex flex-col gap-2 mt-4 max-h-52 overflow-y-auto p-2 bg-black rounded">
               {savedPresets.map((preset, index) => (
                 <button
                   key={index}
-                  className="bg-indigo-200 hover:bg-indigo-300 text-indigo-900 font-semibold py-2 px-4 rounded"
+                  className="bg-indigo-200 hover:bg-indigo-300 text-white font-semibold py-2 px-4 rounded"
                   onClick={() => loadPreset(preset)}
                 >
                   {preset.name}
@@ -338,14 +358,14 @@ function App() {
           )}
         </div>
 
-        <div className="flex flex-col gap-4 mb-8 p-4 bg-white/10 rounded-lg shadow-md">
+        <div className="flex flex-col gap-4 mb-8 p-4 bg-black rounded-lg shadow-md">
           <input
             type="text"
             placeholder="Timer name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isRunning}
-            className="p-2 border border-indigo-500 rounded bg-black/20 text-white"
+            className="p-2 border border-indigo-500 rounded bg-black text-white"
           />
           <div className="flex gap-4 justify-center items-center">
             <div className="flex flex-col items-center">
@@ -385,12 +405,12 @@ function App() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 mb-8 max-h-80 overflow-y-auto p-2 bg-white/10 rounded-lg shadow-md">
+        <div className="flex flex-col gap-2 mb-8 max-h-80 overflow-y-auto p-2 bg-black rounded-lg shadow-md">
           {timers.map((timer, index) => (
             <div
               key={timer.id}
               className={`flex justify-between items-center p-2 border rounded ${
-                index === currentTimerIndex ? 'bg-indigo-300 border-indigo-500' : 'bg-black/20 border-indigo-500'
+                index === currentTimerIndex ? 'bg-indigo-300 border-indigo-500' : 'bg-black border-indigo-500'
               }`}
             >
               <span>{index + 1}. {timer.name}</span>
@@ -429,10 +449,35 @@ function App() {
             Clear All
           </button>
         </div>
-      </div>
+        <div className="flex flex-col gap-4 mb-8 p-4 bg-black rounded-lg shadow-md">
+          <input
+            type="text"
+            placeholder="Preset name"
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            className="p-2 border border-indigo-500 rounded bg-black text-white"
+          />
+          <button
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            onClick={savePreset}
+            disabled={timers.length === 0}
+          >
+            Add to Preset
+          </button>
+          <button
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            onClick={clearPresets}
+            disabled={timers.length === 0}
+          >
+            Clear Presets
+          </button>
+        </div>
+      </div> 
+
         {/* Your content here */}
     </ClickSpark>
-    </>
+    </div>
+
   )
 }
 
