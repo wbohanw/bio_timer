@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import noti from './assets/noti.mp3'
 
+import ClickSpark from './click.tsx';
+
+
 interface TimerItem {
   id: number
   name: string
@@ -32,9 +35,22 @@ const NumberRoll = ({
   const range = max - min + 1
 
   // Generate extended array for infinite scroll illusion
-  const numbers = Array.from({ length: range * 3 }, (_, i) => {
-    const offset = i - range
-    return ((value + offset - min + range) % range) + min
+  const numbers = [-1, 0, 1].map(offset => {
+    const n = ((value + offset - min + range) % range) + min
+    const isCurrent = offset === 0
+    return (
+      <div
+        key={n}
+        className={`number-item ${isCurrent ? 'selected' : ''}`}
+        style={{
+          transform: `translateY(${offset * 100}%)`,
+          opacity: isCurrent ? 1 : 0.3,
+          color: isCurrent ? 'white' : 'gray'
+        }}
+      >
+        {n.toString().padStart(2, '0')}
+      </div>
+    )
   })
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -81,22 +97,7 @@ const NumberRoll = ({
       onPointerCancel={handlePointerUp}
     >
       <div className="number-display">
-        {numbers.map((n, index) => {
-          const distance = Math.abs(n - currentValue)
-          return (
-            <div
-              key={`${n}-${index}`}
-              className={`number-item ${n === currentValue ? 'selected' : ''}`}
-              style={{
-                transform: `translateY(${(index - range) * 100}%)`,
-                opacity: 1 - distance * 0.3,
-                transform: `translateY(${(index - range) * 100}%) scale(${1 - distance * 0.15})`
-              }}
-            >
-              {n.toString().padStart(2, '0')}
-            </div>
-          )
-        })}
+        {numbers}
       </div>
     </div>
   )
@@ -113,6 +114,18 @@ function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [presetName, setPresetName] = useState('')
   const [savedPresets, setSavedPresets] = useState<Preset[]>([])
+  const [showPresets, setShowPresets] = useState(false)
+
+  useEffect(() => {
+    // Clear presets from localStorage on component mount
+    localStorage.removeItem('timerPresets');
+    setSavedPresets([]);
+  }, []);
+
+  useEffect(() => {
+    const presets = JSON.parse(localStorage.getItem('timerPresets') || '[]')
+    setSavedPresets(presets)
+  }, [])
 
   useEffect(() => {
     let interval: number
@@ -164,11 +177,6 @@ function App() {
     }
     return () => clearInterval(interval)
   }, [isRunning, currentTimerIndex])
-
-  useEffect(() => {
-    const presets = JSON.parse(localStorage.getItem('timerPresets') || '[]')
-    setSavedPresets(presets)
-  }, [])
 
   const addItem = () => {
     const totalSeconds = 
@@ -290,59 +298,75 @@ function App() {
     reader.readAsText(file)
   }
 
+  const togglePresets = () => {
+    setShowPresets(prev => !prev);
+  };
+
   return (
     <>
-      <h1>Bio Timer</h1>
-      <div className="card">
-        <div className="preset-controls">
-          <div className="preset-io-buttons">
-            <button className="export-btn" onClick={exportPresets} disabled={savedPresets.length === 0}>
+    <ClickSpark
+  sparkColor='#fff'
+  sparkSize={5}
+  sparkRadius={25}
+  sparkCount={19}
+  duration={600}
+>
+
+      <h1 className="text-3xl font-bold">Bio Timer</h1>
+      <div className="mt-10">
+        <div className="mb-8 p-4 bg-white/10 rounded-lg shadow-md">
+          <div className="flex gap-2 mb-4">
+            <button
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-2xl disabled:opacity-50"
+              onClick={exportPresets}
+              disabled={savedPresets.length === 0}
+            >
               Export Presets
             </button>
-            <label className="import-btn">
+            <label className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer">
               Import Presets
               <input
                 type="file"
                 accept=".json"
                 onChange={importPresets}
-                style={{ display: 'none' }}
+                className="hidden"
               />
             </label>
+            <button
+              onClick={togglePresets}
+              className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-2xl flex items-center"
+            >
+              <span className={`transform transition-transform ${showPresets ? 'rotate-180' : ''}`}>
+                ▼
+              </span>
+            </button>
           </div>
-          
-          <input
-            type="text"
-            placeholder="Preset name"
-            value={presetName}
-            onChange={(e) => setPresetName(e.target.value)}
-          />
-          <button onClick={savePreset} disabled={!presetName || timers.length === 0}>
-            Save Preset
-          </button>
-          
-          <div className="preset-list">
-            {savedPresets.map((preset, index) => (
-              <button
-                key={index}
-                className="preset-item"
-                onClick={() => loadPreset(preset)}
-              >
-                {preset.name}
-              </button>
-            ))}
-          </div>
+          {showPresets && (
+            <div className="flex flex-col gap-2 mt-4 max-h-52 overflow-y-auto p-2 bg-white/5 rounded">
+              {savedPresets.map((preset, index) => (
+                <button
+                  key={index}
+                  className="bg-indigo-200 hover:bg-indigo-300 text-indigo-900 font-semibold py-2 px-4 rounded"
+                  onClick={() => loadPreset(preset)}
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="timer-controls">
+        <div className="flex flex-col gap-4 mb-8 p-4 bg-white/10 rounded-lg shadow-md">
           <input
             type="text"
             placeholder="Timer name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isRunning}
+            className="p-2 border border-indigo-500 rounded bg-black/20 text-white"
           />
-          <div className="time-inputs">
-            <div className="time-column">
+          <div className="flex gap-4 justify-center items-center">
+            <div className="flex flex-col items-center">
               <NumberRoll
                 value={parseInt(hours)}
                 min={0}
@@ -351,7 +375,7 @@ function App() {
               />
               <span>h</span>
             </div>
-            <div className="time-column">
+            <div className="flex flex-col items-center">
               <NumberRoll
                 value={parseInt(minutes)}
                 min={0}
@@ -360,7 +384,7 @@ function App() {
               />
               <span>m</span>
             </div>
-            <div className="time-column">
+            <div className="flex flex-col items-center">
               <NumberRoll
                 value={parseInt(seconds)}
                 min={0}
@@ -369,15 +393,23 @@ function App() {
               />
               <span>s</span>
             </div>
+            <button
+              onClick={addItem}
+              disabled={isRunning}
+              className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold pb-2 px-4 -mt-6 rounded w-full h-24 disabled:opacity-50"
+            >
+              Add item
+            </button>
           </div>
-          <button onClick={addItem} disabled={isRunning}>Add item</button>
         </div>
 
-        <div className="timer-list">
+        <div className="flex flex-col gap-2 mb-8 max-h-80 overflow-y-auto p-2 bg-white/10 rounded-lg shadow-md">
           {timers.map((timer, index) => (
-            <div 
+            <div
               key={timer.id}
-              className={`timer-item ${index === currentTimerIndex ? 'active' : ''}`}
+              className={`flex justify-between items-center p-2 border rounded ${
+                index === currentTimerIndex ? 'bg-indigo-300 border-indigo-500' : 'bg-black/20 border-indigo-500'
+              }`}
             >
               <span>{index + 1}. {timer.name}</span>
               <span>{formatTime(timer.remainingTime)}</span>
@@ -385,21 +417,39 @@ function App() {
           ))}
         </div>
 
-        <div className="controls">
-          <button className="square-btn" onClick={start} disabled={isRunning || timers.length === 0}>
+        <div className="flex justify-center gap-4">
+          <button
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            onClick={start}
+            disabled={isRunning || timers.length === 0}
+          >
             Start
           </button>
-          <button className="square-btn" onClick={() => setIsRunning(false)} disabled={!isRunning}>
+          <button
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            onClick={() => setIsRunning(false)}
+            disabled={!isRunning}
+          >
             Pause
           </button>
-          <button className="square-btn" onClick={reset} disabled={timers.length === 0}>
+          <button
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            onClick={reset}
+            disabled={timers.length === 0}
+          >
             Reset
           </button>
-          <button className="square-btn" onClick={clearAll} disabled={timers.length === 0}>
+          <button
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            onClick={clearAll}
+            disabled={timers.length === 0}
+          >
             Clear All
           </button>
         </div>
       </div>
+        {/* Your content here */}
+    </ClickSpark>
     </>
   )
 }
