@@ -57,25 +57,14 @@
 
 .time-inputs {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   align-items: center;
-  justify-content: center;
   margin: 1rem 0;
 }
 
-.time-inputs input {
-  width: 60px;
-  padding: 0.5rem;
-  border-radius: 4px;
-  border: 1px solid #646cff;
-  background-color: rgba(0, 0, 0, 0.2);
-  color: inherit;
-  text-align: center;
-}
-
-.time-inputs span {
-  font-weight: bold;
-  color: #646cff;
+/* Remove old input styles */
+.time-inputs input[type="number"] {
+  display: none;
 }
 
 .timer-list {
@@ -139,4 +128,128 @@ input[type="text"] {
 
 .timer-item.active {
   animation: pulse 2s infinite;
+}
+
+/* Add squared button styling */
+button {
+  border-radius: 2px;
+  padding: 0.8em 1.2em;
+  transition: all 0.25s;
+}
+
+/* Preset controls styling */
+.preset-controls {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.preset-list {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.preset-item {
+  background-color: rgba(100, 108, 255, 0.2);
+  border: 1px solid #646cff;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.preset-item:hover {
+  background-color: rgba(100, 108, 255, 0.3);
+}
+
+/* Enhance button styling */
+.controls button {
+  min-width: 100px;
+  margin: 0 4px;
+  background-color: #646cff;
+  border: 1px solid #535bf2;
+}
+
+.controls button:hover {
+  background-color: #535bf2;
+}
+
+.controls button:disabled {
+  background-color: #3a3f5c;
+  border-color: #2a2f4a;
+}
+
+/* Add these new styles */
+.preset-io-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.export-btn {
+  background-color: #4CAF50 !important;
+  border-color: #45a049 !important;
+}
+
+.import-btn {
+  background-color: #2196F3 !important;
+  border-color: #1976D2 !important;
+  cursor: pointer;
+}
+
+.export-btn:hover {
+  background-color: #45a049 !important;
+}
+
+.import-btn:hover {
+  background-color: #1976D2 !important;
+}
+
+.preset-item {
+  margin: 2px;
+  padding: 0.5rem;
+  font-size: 0.9em;
+}
+
+/* Add number roll styles */
+.number-roll {
+  height: 120px;
+  width: 60px;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  border: 1px solid #646cff;
+}
+
+.number-roll::-webkit-scrollbar {
+  width: 0;
+}
+
+.number-item {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.number-item.selected {
+  background: #646cff;
+  font-weight: bold;
+  transform: scale(1.1);
+}
+
+.number-item:hover {
+  background: rgba(100, 108, 255, 0.3);
+}
+
+.time-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }

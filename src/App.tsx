@@ -1,11 +1,85 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import noti from './assets/noti.mp3'
+
 interface TimerItem {
   id: number
   name: string
   initialTime: number
   remainingTime: number
+}
+
+interface Preset {
+  name: string
+  timers: TimerItem[]
+}
+
+const NumberRoll = ({
+  value,
+  min,
+  max,
+  onChange
+}: {
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startY, setStartY] = useState(0)
+  const [currentValue, setCurrentValue] = useState(value)
+
+  const numbers = Array.from({ length: max - min + 1 }, (_, i) => i + min)
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsDragging(true)
+    setStartY(e.clientY)
+    if (containerRef.current) {
+      containerRef.current.setPointerCapture(e.pointerId)
+    }
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return
+    
+    const deltaY = startY - e.clientY
+    const sensitivity = 5 // Pixels per step
+    const steps = Math.round(deltaY / sensitivity)
+    const newValue = Math.min(max, Math.max(min, value + steps))
+    
+    if (newValue !== currentValue) {
+      setCurrentValue(newValue)
+      onChange(newValue)
+    }
+  }
+
+  const handlePointerUp = () => {
+    setIsDragging(false)
+  }
+
+  return (
+    <div 
+      ref={containerRef}
+      className={`number-roll ${isDragging ? 'dragging' : ''}`}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <div className="number-display">
+        {numbers.map((n) => (
+          <div
+            key={n}
+            className={`number-item ${n === currentValue ? 'selected' : ''}`}
+            style={{ transform: `translateY(${(n - currentValue) * 100}%)` }}
+          >
+            {n.toString().padStart(2, '0')}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function App() {
@@ -17,6 +91,8 @@ function App() {
   const [minutes, setMinutes] = useState('0')
   const [seconds, setSeconds] = useState('0')
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [presetName, setPresetName] = useState('')
+  const [savedPresets, setSavedPresets] = useState<Preset[]>([])
 
   useEffect(() => {
     let interval: number
@@ -68,6 +144,11 @@ function App() {
     }
     return () => clearInterval(interval)
   }, [isRunning, currentTimerIndex])
+
+  useEffect(() => {
+    const presets = JSON.parse(localStorage.getItem('timerPresets') || '[]')
+    setSavedPresets(presets)
+  }, [])
 
   const addItem = () => {
     const totalSeconds = 
@@ -123,10 +204,115 @@ function App() {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
+  const savePreset = () => {
+    if (presetName && timers.length > 0) {
+      const newPreset: Preset = {
+        name: presetName,
+        timers: timers.map(t => ({
+          ...t,
+          remainingTime: t.initialTime
+        }))
+      }
+      
+      const presets = JSON.parse(localStorage.getItem('timerPresets') || '[]')
+      const newPresets = [...presets, newPreset]
+      localStorage.setItem('timerPresets', JSON.stringify(newPresets))
+      setSavedPresets(newPresets)
+      setPresetName('')
+    }
+  }
+
+  const loadPreset = (preset: Preset) => {
+    if (confirm('Load this preset? Current timers will be lost.')) {
+      setTimers(preset.timers)
+      setIsRunning(false)
+      setCurrentTimerIndex(-1)
+    }
+  }
+
+  const exportPresets = () => {
+    const dataStr = JSON.stringify(savedPresets, null, 2)
+    const blob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `timer-presets-${new Date().toISOString().slice(0,10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const importPresets = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const parsedPresets = JSON.parse(e.target?.result as string)
+        
+        // Basic validation
+        if (!Array.isArray(parsedPresets) || 
+            !parsedPresets.every(p => p.name && Array.isArray(p.timers))) {
+          throw new Error('Invalid preset file format')
+        }
+
+        const importedPresets = [...savedPresets, ...parsedPresets]
+        localStorage.setItem('timerPresets', JSON.stringify(importedPresets))
+        setSavedPresets(importedPresets)
+        alert('Successfully imported presets!')
+      } catch (error) {
+        console.error('Import failed:', error)
+        alert('Failed to import presets. Invalid file format.')
+      }
+    }
+    reader.readAsText(file)
+  }
+
   return (
     <>
       <h1>Bio Timer</h1>
       <div className="card">
+        <div className="preset-controls">
+          <div className="preset-io-buttons">
+            <button className="export-btn" onClick={exportPresets} disabled={savedPresets.length === 0}>
+              Export Presets
+            </button>
+            <label className="import-btn">
+              Import Presets
+              <input
+                type="file"
+                accept=".json"
+                onChange={importPresets}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+          
+          <input
+            type="text"
+            placeholder="Preset name"
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+          />
+          <button onClick={savePreset} disabled={!presetName || timers.length === 0}>
+            Save Preset
+          </button>
+          
+          <div className="preset-list">
+            {savedPresets.map((preset, index) => (
+              <button
+                key={index}
+                className="preset-item"
+                onClick={() => loadPreset(preset)}
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="timer-controls">
           <input
             type="text"
@@ -136,32 +322,33 @@ function App() {
             disabled={isRunning}
           />
           <div className="time-inputs">
-            <input
-              type="number"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              min="0"
-              disabled={isRunning}
-            />
-            <span>h</span>
-            <input
-              type="number"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              min="0"
-              max="59"
-              disabled={isRunning}
-            />
-            <span>m</span>
-            <input
-              type="number"
-              value={seconds}
-              onChange={(e) => setSeconds(e.target.value)}
-              min="0"
-              max="59"
-              disabled={isRunning}
-            />
-            <span>s</span>
+            <div className="time-column">
+              <NumberRoll
+                value={parseInt(hours)}
+                min={0}
+                max={23}
+                onChange={(val) => setHours(val.toString())}
+              />
+              <span>h</span>
+            </div>
+            <div className="time-column">
+              <NumberRoll
+                value={parseInt(minutes)}
+                min={0}
+                max={59}
+                onChange={(val) => setMinutes(val.toString())}
+              />
+              <span>m</span>
+            </div>
+            <div className="time-column">
+              <NumberRoll
+                value={parseInt(seconds)}
+                min={0}
+                max={59}
+                onChange={(val) => setSeconds(val.toString())}
+              />
+              <span>s</span>
+            </div>
           </div>
           <button onClick={addItem} disabled={isRunning}>Add item</button>
         </div>
@@ -179,16 +366,16 @@ function App() {
         </div>
 
         <div className="controls">
-          <button onClick={start} disabled={isRunning || timers.length === 0}>
+          <button className="square-btn" onClick={start} disabled={isRunning || timers.length === 0}>
             Start
           </button>
-          <button onClick={() => setIsRunning(false)} disabled={!isRunning}>
+          <button className="square-btn" onClick={() => setIsRunning(false)} disabled={!isRunning}>
             Pause
           </button>
-          <button onClick={reset} disabled={timers.length === 0}>
+          <button className="square-btn" onClick={reset} disabled={timers.length === 0}>
             Reset
           </button>
-          <button onClick={clearAll} disabled={timers.length === 0}>
+          <button className="square-btn" onClick={clearAll} disabled={timers.length === 0}>
             Clear All
           </button>
         </div>
