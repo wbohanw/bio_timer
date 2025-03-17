@@ -112,7 +112,6 @@ function App() {
   const [minutes, setMinutes] = useState('0')
   const [seconds, setSeconds] = useState('0')
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const [presetName, setPresetName] = useState('')
   const [savedPresets, setSavedPresets] = useState<Preset[]>([])
   const [showPresets, setShowPresets] = useState(false)
 
@@ -128,7 +127,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    let interval: number
+    let interval: NodeJS.Timeout | number
     if (isRunning && currentTimerIndex !== -1) {
       interval = setInterval(() => {
         setTimers(prev => {
@@ -232,23 +231,6 @@ function App() {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const savePreset = () => {
-    if (presetName && timers.length > 0) {
-      const newPreset: Preset = {
-        name: presetName,
-        timers: timers.map(t => ({
-          ...t,
-          remainingTime: t.initialTime
-        }))
-      }
-      
-      const presets = JSON.parse(localStorage.getItem('timerPresets') || '[]')
-      const newPresets = [...presets, newPreset]
-      localStorage.setItem('timerPresets', JSON.stringify(newPresets))
-      setSavedPresets(newPresets)
-      setPresetName('')
-    }
-  }
 
   const loadPreset = (preset: Preset) => {
     if (confirm('Load this preset? Current timers will be lost.')) {
