@@ -29,8 +29,13 @@ const NumberRoll = ({
   const [isDragging, setIsDragging] = useState(false)
   const [startY, setStartY] = useState(0)
   const [currentValue, setCurrentValue] = useState(value)
+  const range = max - min + 1
 
-  const numbers = Array.from({ length: max - min + 1 }, (_, i) => i + min)
+  // Generate extended array for infinite scroll illusion
+  const numbers = Array.from({ length: range * 3 }, (_, i) => {
+    const offset = i - range
+    return ((value + offset - min + range) % range) + min
+  })
 
   const handlePointerDown = (e: React.PointerEvent) => {
     setIsDragging(true)
@@ -44,39 +49,54 @@ const NumberRoll = ({
     if (!isDragging) return
     
     const deltaY = startY - e.clientY
-    const sensitivity = 5 // Pixels per step
+    const sensitivity = 3
     const steps = Math.round(deltaY / sensitivity)
-    const newValue = Math.min(max, Math.max(min, value + steps))
+    let newValue = value + steps
+    
+    // Handle circular wrapping
+    newValue = ((newValue - min + range) % range) + min
     
     if (newValue !== currentValue) {
       setCurrentValue(newValue)
       onChange(newValue)
+      setStartY(e.clientY)
     }
   }
 
   const handlePointerUp = () => {
     setIsDragging(false)
+    // Snap to nearest integer
+    const finalValue = Math.round(currentValue)
+    setCurrentValue(finalValue)
+    onChange(finalValue)
   }
 
   return (
     <div 
       ref={containerRef}
-      className={`number-roll ${isDragging ? 'dragging' : ''}`}
+      className="number-roll"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
       <div className="number-display">
-        {numbers.map((n) => (
-          <div
-            key={n}
-            className={`number-item ${n === currentValue ? 'selected' : ''}`}
-            style={{ transform: `translateY(${(n - currentValue) * 100}%)` }}
-          >
-            {n.toString().padStart(2, '0')}
-          </div>
-        ))}
+        {numbers.map((n, index) => {
+          const distance = Math.abs(n - currentValue)
+          return (
+            <div
+              key={`${n}-${index}`}
+              className={`number-item ${n === currentValue ? 'selected' : ''}`}
+              style={{
+                transform: `translateY(${(index - range) * 100}%)`,
+                opacity: 1 - distance * 0.3,
+                transform: `translateY(${(index - range) * 100}%) scale(${1 - distance * 0.15})`
+              }}
+            >
+              {n.toString().padStart(2, '0')}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
