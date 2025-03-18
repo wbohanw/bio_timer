@@ -3,7 +3,6 @@ import './App.css'
 import noti from './assets/noti.mp3'
 import Cookies from 'js-cookie'
 
-import ClickSpark from './click.tsx';
 
 declare module 'js-cookie' {
   export function get(name: string): string | undefined;
@@ -21,6 +20,15 @@ interface TimerItem {
 interface Preset {
   name: string
   timers: TimerItem[]
+}
+
+interface SidebarProps {
+  show: boolean;
+  toggleSidebar: () => void;
+  presets: Preset[];
+  loadPreset: (preset: Preset) => void;
+  exportPresets: () => void;
+  importPresets: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const NumberRoll = ({
@@ -70,6 +78,8 @@ const NumberRoll = ({
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging) return
     
+    e.preventDefault(); // Prevent default scroll behavior
+
     const deltaY = startY - e.clientY
     const sensitivity = 3
     const steps = Math.round(deltaY / sensitivity)
@@ -101,6 +111,7 @@ const NumberRoll = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      style={{ overflow: 'hidden' }} // Disable scroll
     >
       <div className="number-display">
         {numbers}
@@ -108,6 +119,43 @@ const NumberRoll = ({
     </div>
   )
 }
+
+const Sidebar: React.FC<SidebarProps> = ({ show, toggleSidebar, presets, loadPreset, exportPresets, importPresets }) => (
+  <div className={`fixed top-0 right-0 h-full bg-black shadow-md transition-transform transform ${show ? 'translate-x-0' : 'translate-x-full'}`} style={{ width: '300px' }}>
+    <button onClick={toggleSidebar} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded m-4">
+      Close
+    </button>
+    <div className="flex flex-col gap-2 mt-4 max-h-52 overflow-y-auto p-2 bg-black rounded">
+      <div className='flex gap-2'>
+        <button
+          className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-2xl disabled:opacity-50"
+          onClick={exportPresets}
+          disabled={presets.length === 0}
+        >
+          Export Presets
+        </button>
+        <label className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer">
+          Import Presets
+          <input
+            type="file"
+            accept=".json"
+            onChange={importPresets}
+            className="hidden"
+          />
+        </label>
+      </div>
+      {presets.map((preset, index) => (
+        <button
+          key={index}
+          className="bg-indigo-200 hover:bg-indigo-300 text-white font-semibold py-2 px-4 rounded"
+          onClick={() => loadPreset(preset)}
+        >
+          {preset.name}
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 function App() {
   const [timers, setTimers] = useState<TimerItem[]>([])
@@ -120,10 +168,9 @@ function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [presetName, setPresetName] = useState('')
   const [savedPresets, setSavedPresets] = useState<Preset[]>([])
-  const [showPresets, setShowPresets] = useState(false)
+  const [showSidebar, setShowSidebar] = useState(false)
 
   useEffect(() => {
-    // Load presets from cookies on component mount
     const cookiePresets = Cookies.get('timerPresets');
     if (cookiePresets) {
       setSavedPresets(JSON.parse(cookiePresets));
@@ -246,7 +293,7 @@ function App() {
       };
       
       const newPresets = [...savedPresets, newPreset];
-      Cookies.set('timerPresets', JSON.stringify(newPresets), { expires: 365 }); // Set cookie to expire in 1 year
+      Cookies.set('timerPresets', JSON.stringify(newPresets), { expires: 365 });
       setSavedPresets(newPresets);
       setPresetName('');
     }
@@ -282,7 +329,6 @@ function App() {
       try {
         const parsedPresets = JSON.parse(e.target?.result as string)
         
-        // Basic validation
         if (!Array.isArray(parsedPresets) || 
             !parsedPresets.every(p => p.name && Array.isArray(p.timers))) {
           throw new Error('Invalid preset file format')
@@ -300,8 +346,8 @@ function App() {
     reader.readAsText(file)
   }
 
-  const togglePresets = () => {
-    setShowPresets(prev => !prev);
+  const toggleSidebar = () => {
+    setShowSidebar(prev => !prev);
   };
 
   const clearPresets = () => {
@@ -309,180 +355,138 @@ function App() {
     setSavedPresets([]);
   };
 
+  const calculateTotalTime = () => {
+    return timers.reduce((total, timer) => total + timer.remainingTime, 0);
+  };
+
+  const formatTotalTime = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className='bg-black h-screen overflow-hidden'>
-    <ClickSpark
-  sparkColor='#fff'
-  sparkSize={5}
-  sparkRadius={25}
-  sparkCount={19}
-  duration={600}
->
+    <div className='bg-black h-screen overflow-hidden flex flex-col justify-center items-center'>
+      <div> bio timer</div>
+      <div className="text-white text-[70px] font-bold mb-4">
+        {formatTotalTime(calculateTotalTime())}
+      </div>
+      <button onClick={toggleSidebar} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg m-4 absolute bottom-4 left-4">
+        <span className={`transform transition-transform ${showSidebar ? 'rotate-180' : ''}`}>▶</span>
+      </button>
 
-      <h1 className="text-3xl font-bold">Bio Timer</h1>
-      <div className="mt-10">
-        <div className="mb-8 p-4 bg-black rounded-lg shadow-md">
-          <div className="flex gap-2 mb-4">
-            <button
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-2xl disabled:opacity-50"
-              onClick={exportPresets}
-              disabled={savedPresets.length === 0}
-            >
-              Export Presets
-            </button>
-            <label className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer">
-              Import Presets
-              <input
-                type="file"
-                accept=".json"
-                onChange={importPresets}
-                className="hidden"
-              />
-            </label>
-            <button
-              onClick={togglePresets}
-              className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-2xl flex items-center"
-            >
-              <span className={`transform transition-transform ${showPresets ? 'rotate-180' : ''}`}>
-                ▼
-              </span>
-            </button>
-          </div>
-          {showPresets && (
-            <div className="flex flex-col gap-2 mt-4 max-h-52 overflow-y-auto p-2 bg-black rounded">
-              {savedPresets.map((preset, index) => (
-                <button
-                  key={index}
-                  className="bg-indigo-200 hover:bg-indigo-300 text-white font-semibold py-2 px-4 rounded"
-                  onClick={() => loadPreset(preset)}
-                >
-                  {preset.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-4 mb-8 p-4 bg-black rounded-lg shadow-md">
-          <input
-            type="text"
-            placeholder="Timer name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+      <div className="flex flex-col gap-4 mb-8 p-4 bg-black rounded-lg shadow-md w-full max-w-2xl">
+        <input
+          type="text"
+          placeholder="Timer name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={isRunning}
+          className="p-2 border border-indigo-500 rounded bg-black text-white"
+        />
+        <div className="flex gap-4 justify-center items-center">
+          <NumberRoll
+            value={parseInt(hours)}
+            min={0}
+            max={23}
+            onChange={(val) => setHours(val.toString())}
+          />
+          <span>h</span>
+          <NumberRoll
+            value={parseInt(minutes)}
+            min={0}
+            max={59}
+            onChange={(val) => setMinutes(val.toString())}
+          />
+          <span>m</span>
+          <NumberRoll
+            value={parseInt(seconds)}
+            min={0}
+            max={59}
+            onChange={(val) => setSeconds(val.toString())}
+          />
+          <span>s</span>
+          <button
+            onClick={addItem}
             disabled={isRunning}
-            className="p-2 border border-indigo-500 rounded bg-black text-white"
-          />
-          <div className="flex gap-4 justify-center items-center">
-            <div className="flex flex-col items-center">
-              <NumberRoll
-                value={parseInt(hours)}
-                min={0}
-                max={23}
-                onChange={(val) => setHours(val.toString())}
-              />
-              <span>h</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <NumberRoll
-                value={parseInt(minutes)}
-                min={0}
-                max={59}
-                onChange={(val) => setMinutes(val.toString())}
-              />
-              <span>m</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <NumberRoll
-                value={parseInt(seconds)}
-                min={0}
-                max={59}
-                onChange={(val) => setSeconds(val.toString())}
-              />
-              <span>s</span>
-            </div>
-            <button
-              onClick={addItem}
-              disabled={isRunning}
-              className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold pb-2 px-4 -mt-6 rounded w-full h-24 disabled:opacity-50"
-            >
-              Add item
-            </button>
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold px-4 rounded w-16 h-24 disabled:opacity-50"
+          >
+          Add
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 mb-8 max-h-80 overflow-y-auto p-2 bg-black rounded-lg shadow-md w-full max-w-2xl">
+        {timers.map((timer, index) => (
+          <div
+            key={timer.id}
+            className={`flex justify-between items-center p-2 border rounded ${
+              index === currentTimerIndex ? 'bg-indigo-300 border-indigo-500' : 'bg-black border-indigo-500'
+            }`}
+          >
+            <span>{index + 1}. {timer.name}</span>
+            <span>{formatTime(timer.remainingTime)}</span>
           </div>
-        </div>
+        ))}
+      </div>
 
-        <div className="flex flex-col gap-2 mb-8 max-h-80 overflow-y-auto p-2 bg-black rounded-lg shadow-md">
-          {timers.map((timer, index) => (
-            <div
-              key={timer.id}
-              className={`flex justify-between items-center p-2 border rounded ${
-                index === currentTimerIndex ? 'bg-indigo-300 border-indigo-500' : 'bg-black border-indigo-500'
-              }`}
-            >
-              <span>{index + 1}. {timer.name}</span>
-              <span>{formatTime(timer.remainingTime)}</span>
-            </div>
-          ))}
-        </div>
+      <div className="flex justify-center gap-4 w-full max-w-2xl">
+        <button
+          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          onClick={start}
+          disabled={isRunning || timers.length === 0}
+        >
+          Start
+        </button>
+        <button
+          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          onClick={() => setIsRunning(false)}
+          disabled={!isRunning}
+        >
+          Pause
+        </button>
+        <button
+          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          onClick={reset}
+          disabled={timers.length === 0}
+        >
+          Reset
+        </button>
+        <button
+          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          onClick={clearAll}
+          disabled={timers.length === 0}
+        >
+          Clear All
+        </button>
+      </div>
+      <div className="flex flex-col gap-4 mb-8 p-4 bg-black rounded-lg shadow-md w-full max-w-2xl">
+        <input
+          type="text"
+          placeholder="Preset name"
+          value={presetName}
+          onChange={(e) => setPresetName(e.target.value)}
+          className="p-2 border border-indigo-500 rounded bg-black text-white"
+        />
+        <button
+          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          onClick={savePreset}
+          disabled={timers.length === 0}
+        >
+          Add to Preset
+        </button>
+        <button
+          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          onClick={clearPresets}
+          disabled={timers.length === 0}
+        >
+          Clear Presets
+        </button>
+      </div>
+      <Sidebar show={showSidebar} toggleSidebar={toggleSidebar} presets={savedPresets} loadPreset={loadPreset} exportPresets={exportPresets} importPresets={importPresets} />
 
-        <div className="flex justify-center gap-4">
-          <button
-            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-            onClick={start}
-            disabled={isRunning || timers.length === 0}
-          >
-            Start
-          </button>
-          <button
-            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-            onClick={() => setIsRunning(false)}
-            disabled={!isRunning}
-          >
-            Pause
-          </button>
-          <button
-            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-            onClick={reset}
-            disabled={timers.length === 0}
-          >
-            Reset
-          </button>
-          <button
-            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-            onClick={clearAll}
-            disabled={timers.length === 0}
-          >
-            Clear All
-          </button>
-        </div>
-        <div className="flex flex-col gap-4 mb-8 p-4 bg-black rounded-lg shadow-md">
-          <input
-            type="text"
-            placeholder="Preset name"
-            value={presetName}
-            onChange={(e) => setPresetName(e.target.value)}
-            className="p-2 border border-indigo-500 rounded bg-black text-white"
-          />
-          <button
-            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-            onClick={savePreset}
-            disabled={timers.length === 0}
-          >
-            Add to Preset
-          </button>
-          <button
-            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-            onClick={clearPresets}
-            disabled={timers.length === 0}
-          >
-            Clear Presets
-          </button>
-        </div>
-      </div> 
-
-        {/* Your content here */}
-    </ClickSpark>
     </div>
-
   )
 }
 
