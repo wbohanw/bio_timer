@@ -485,7 +485,7 @@ function App() {
         </button>
       </div>
       <Sidebar show={showSidebar} toggleSidebar={toggleSidebar} presets={savedPresets} loadPreset={loadPreset} exportPresets={exportPresets} importPresets={importPresets} />
-
+/
     </div>
   )
 }
